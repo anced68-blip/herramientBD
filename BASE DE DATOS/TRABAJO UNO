@@ -1,0 +1,80 @@
+import pandas as pd
+from sqlalchemy import create_engine, text
+import mysql.connector
+
+# Conexión
+cnx = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="TU_PASSWORD",
+    database="practica_normalizacion"
+)
+cursor = cnx.cursor()
+
+path = "Practica Normalizacion.xlsx"
+
+# EJERCICIO 4
+df4 = pd.read_excel(path, sheet_name='4')
+df4.columns = df4.iloc[0]
+df4 = df4[1:]
+
+# Insert Cliente
+clientes = df4[['id_cliente','Codigo_cliente','Nombre_Cliente','Teléfono','Correo']].drop_duplicates()
+for _, row in clientes.iterrows():
+    cursor.execute("""
+        INSERT INTO cliente VALUES (%s,%s,%s,%s,%s)
+    """, tuple(row))
+
+# Insert Mesa
+mesas = df4[['Mesa','Capacidad_Mesa']].drop_duplicates().reset_index(drop=True)
+mesas['id_mesa'] = mesas.index + 1
+for _, row in mesas.iterrows():
+    cursor.execute("""
+        INSERT INTO mesa VALUES (%s,%s)
+    """, (row['id_mesa'], row['Capacidad_Mesa']))
+
+# Insert Reservacion
+for _, row in df4.iterrows():
+    cursor.execute("""
+        INSERT INTO reservacion(id_cliente,id_mesa,fecha_reservacion,hora_reservacion,cantidad_personas,estado_reservacion)
+        VALUES (%s,%s,%s,%s,%s,%s)
+    """, (
+        row['id_cliente'],
+        mesas.loc[mesas['Mesa']==row['Mesa'],'id_mesa'].values[0],
+        row['Fecha_Reservación'],
+        row['Hora'],
+        row['Cantidad_Personas'],
+        row['Estado_Reservación']
+    ))
+
+# EJERCICIO 5
+df5 = pd.read_excel(path, sheet_name='5')
+df5.columns = df5.iloc[0]
+df5 = df5[1:]
+
+# Insert Proveedor
+proveedores = df5[['Proveedor_ID','Nombre_Proveedor','Dirección_Proveedor','Teléfono_Proveedor']].drop_duplicates()
+for _, row in proveedores.iterrows():
+    cursor.execute("""
+        INSERT INTO proveedor VALUES (%s,%s,%s,%s)
+    """, tuple(row))
+
+# Insert Producto
+for _, row in df5.iterrows():
+    cursor.execute("""
+        INSERT INTO producto VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        row['Producto_ID'],
+        row['Nombre_Producto'],
+        row['Categoría'],
+        row['Precio'],
+        row['Stock'],
+        row['Proveedor_ID'],
+        row['Fecha_Compra'],
+        row['Precio_Compra'],
+        row['Estado_Producto']
+    ))
+
+cnx.commit()
+cnx.close()
+print("Carga completada con éxito ✅")
